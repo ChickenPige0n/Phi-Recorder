@@ -152,14 +152,14 @@ async function chooseChart(folder?: boolean) {
   let file = folder
     ? await dialog.open({ directory: true })
     : await dialog.open({
-        filters: [
-          {
-            name: t('choose.filter-name'),
-            extensions: ['zip', 'pez'],
-          },
-          anyFilter(),
-        ],
-      });
+      filters: [
+        {
+          name: t('choose.filter-name'),
+          extensions: ['zip', 'pez'],
+        },
+        anyFilter(),
+      ],
+    });
   if (!file) {
     choosingChart.value = false;
     return;
@@ -273,7 +273,7 @@ const isLinux = String(platform) === 'Linux';
 import { open } from '@tauri-apps/api/shell';
 async function getNewVersion() {
   //dialog_download.value = true;
-  
+
   try {
     const response = await fetch('https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest', {
       method: 'GET',
@@ -305,7 +305,7 @@ async function getNewVersion() {
     const link = (asset as Assets).browser_download_url;
     console.log(link);
     await open(link);
-    
+
   } catch (error) {
     console.error('Error fetching tags:', error);
     await open("https://github.com/BtbN/FFmpeg-Builds/releases");
@@ -335,7 +335,11 @@ async function previewTweakoffset() {
   try {
     let params = await buildParams();
     if (!params) return false;
-    await invoke('preview_tweakoffset', { params });
+    let result_offset = await invoke('preview_tweakoffset', { params });
+    if (result_offset) {
+      chartInfo.value!.offset = result_offset as number;
+      offset_text.value = String(Math.floor(chartInfo.value!.offset * 1000));
+    }
     stepIndex.value--;
     return true;
   } catch (e) {
@@ -418,28 +422,36 @@ function tryParseAspect(): number | undefined {
 
 <template>
   <div class="pa-8 w-100 h-100" style="max-width: 1280px">
-    <v-stepper v-model="stepIndex" hide-actions :items="steps.map((x) => t('steps.' + x))" class="elevated-stepper v-stepper">
+    <v-stepper v-model="stepIndex" hide-actions :items="steps.map((x) => t('steps.' + x))"
+      class="elevated-stepper v-stepper">
       <div v-if="step === 'config' || step === 'options'" class="d-flex flex-row pa-6 pb-4 pt-0">
         <v-btn variant="text" @click="stepIndex && stepIndex--">{{ t('prev-step') }}</v-btn>
-        <v-btn v-if="step === 'options'" variant="text" @click="previewTweakoffset" class="mr-2">{{ t('tweakoffset') }}</v-btn>
+        <v-btn v-if="step === 'options'" variant="text" @click="previewTweakoffset" class="mr-2">{{ t('tweakoffset')
+        }}</v-btn>
         <div class="flex-grow-1"></div>
-        <v-btn v-if="step === 'options'" :loading="loadingPlay" variant="text" @click="previewPlay" class="mr-2">{{ t('play') }}</v-btn>
-        <v-btn v-if="step === 'options'" :loading="loadingPreview" variant="text" @click="previewChart" class="mr-2">{{ t('preview') }}</v-btn>
-        <v-btn :loading="loadingNext" variant="tonal" @click="moveNext" class="gradient-primary">{{ step === 'options' ? t('render') : t('next-step') }}</v-btn>
+        <v-btn v-if="step === 'options'" :loading="loadingPlay" variant="text" @click="previewPlay" class="mr-2">{{
+          t('play') }}</v-btn>
+        <v-btn v-if="step === 'options'" :loading="loadingPreview" variant="text" @click="previewChart" class="mr-2">{{
+          t('preview') }}</v-btn>
+        <v-btn :loading="loadingNext" variant="tonal" @click="moveNext" class="gradient-primary">{{ step === 'options' ?
+          t('render') : t('next-step') }}</v-btn>
       </div>
 
       <template v-slot:item.1>
         <div class="mt-8 d-flex" style="gap: 1rem">
           <div class="flex-grow-1 d-flex align-center justify-center w-0 py-8">
-            <v-btn class="w-75 gradient-primary" style="overflow: hidden" size="large" color="primary" @click="chooseChart(false)" prepend-icon="mdi-folder-zip">{{ t('choose.archive') }}</v-btn>
+            <v-btn class="w-75 gradient-primary" style="overflow: hidden" size="large" color="primary"
+              @click="chooseChart(false)" prepend-icon="mdi-folder-zip">{{ t('choose.archive') }}</v-btn>
           </div>
           <v-divider vertical></v-divider>
           <div class="flex-grow-1 d-flex align-center justify-center w-0">
-            <v-btn class="w-75 gradient-primary" size="large" color="primary" @click="chooseChart(true)" prepend-icon="mdi-folder">{{ t('choose.folder') }}</v-btn>
+            <v-btn class="w-75 gradient-primary" size="large" color="primary" @click="chooseChart(true)"
+              prepend-icon="mdi-folder">{{ t('choose.folder') }}</v-btn>
           </div>
         </div>
         <p class="mb-8 w-100 text-center mt-2 text-disabled" v-t="'choose.can-also-drop'"></p>
-        <v-overlay v-model="parsingChart" contained class="align-center justify-center" persistent :close-on-content-click="false">
+        <v-overlay v-model="parsingChart" contained class="align-center justify-center" persistent
+          :close-on-content-click="false">
           <v-progress-circular indeterminate> </v-progress-circular>
         </v-overlay>
       </template>
@@ -451,7 +463,8 @@ function tryParseAspect(): number | undefined {
               <v-text-field class="mx-2" :label="t('chart-name')" v-model="chartInfo.name"></v-text-field>
             </v-col>
             <v-col cols="2">
-              <v-text-field class="mx-2" :label="t('chart-offset')" type="number" :rules="[RULES.int]" v-model="offset_text"></v-text-field>
+              <v-text-field class="mx-2" :label="t('chart-offset')" type="number" :rules="[RULES.int]"
+                v-model="offset_text"></v-text-field>
             </v-col>
             <v-col cols="4">
               <v-text-field class="mx-2" :label="t('level')" v-model="chartInfo.level"></v-text-field>
@@ -475,20 +488,24 @@ function tryParseAspect(): number | undefined {
               <div class="mx-2 d-flex flex-column">
                 <p class="text-caption" v-t="'aspect'"></p>
                 <div class="d-flex flex-row align-center justify-center">
-                  <v-text-field type="number" class="mr-2" :rules="[RULES.positive]" :label="t('width')" v-model="aspectWidth"></v-text-field>
+                  <v-text-field type="number" class="mr-2" :rules="[RULES.positive]" :label="t('width')"
+                    v-model="aspectWidth"></v-text-field>
                   <p>:</p>
-                  <v-text-field type="number" class="ml-2" :rules="[RULES.positive]" :label="t('height')" v-model="aspectHeight"></v-text-field>
+                  <v-text-field type="number" class="ml-2" :rules="[RULES.positive]" :label="t('height')"
+                    v-model="aspectHeight"></v-text-field>
                 </div>
               </div>
             </v-col>
             <v-col cols="8" class="px-6">
-              <v-slider :label="t('dim')" thumb-label="always" :min="0" :max="1" :step="0.01" v-model="chartInfo.backgroundDim"></v-slider>
+              <v-slider :label="t('dim')" thumb-label="always" :min="0" :max="1" :step="0.01"
+                v-model="chartInfo.backgroundDim"></v-slider>
             </v-col>
           </v-row>
 
           <v-row no-gutters class="mx-n2 mt-1">
             <v-col cols="12">
-              <v-text-field class="mx-2" :label="t('tip')" :placeholder="t('tip-placeholder')" v-model="chartInfo.tip"></v-text-field>
+              <v-text-field class="mx-2" :label="t('tip')" :placeholder="t('tip-placeholder')"
+                v-model="chartInfo.tip"></v-text-field>
             </v-col>
           </v-row>
         </v-form>
@@ -506,7 +523,8 @@ function tryParseAspect(): number | undefined {
         </div>
       </template>
     </v-stepper>
-    <v-overlay v-model="fileHovering" contained class="align-center justify-center drop-zone-overlay" persistent :close-on-content-click="false">
+    <v-overlay v-model="fileHovering" contained class="align-center justify-center drop-zone-overlay" persistent
+      :close-on-content-click="false">
       <div class="drop-pulse">
         <h1 v-t="'choose.drop'"></h1>
       </div>
@@ -514,23 +532,24 @@ function tryParseAspect(): number | undefined {
   </div>
 
   <v-dialog v-model="ffmpegDialog" width="auto" min-width="400px" class="log-card-bg">
-      <v-card class="log-card-window">
-        <v-card-title v-t="t('ffmpeg-not-found')"> </v-card-title>
-        <v-card-text>
-          <pre class="block whitespace-pre overflow-auto log-card-msg" style="max-height: 60vh; white-space: pre-wrap">{{ t('ffmpeg-not-found-detail') }}</pre>
-        </v-card-text>
-        <v-card-actions class="justify-end">
-          <v-btn variant="text" @click="getNewVersion" v-t="t('try-download')"></v-btn>
-          <v-btn variant="text" @click="openDownload" v-t="t('open-download')"></v-btn>
-          <v-btn variant="text" @click="openAppFolder" v-t="t('open-app-folder')"></v-btn>
-          <v-btn color="primary" class="hover-scale" variant="text" @click="ffmpegDialog = false" v-t="t('confirm')"></v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <v-card class="log-card-window">
+      <v-card-title v-t="t('ffmpeg-not-found')"> </v-card-title>
+      <v-card-text>
+        <pre class="block whitespace-pre overflow-auto log-card-msg" style="max-height: 60vh; white-space: pre-wrap">{{
+          t('ffmpeg-not-found-detail') }}</pre>
+      </v-card-text>
+      <v-card-actions class="justify-end">
+        <v-btn variant="text" @click="getNewVersion" v-t="t('try-download')"></v-btn>
+        <v-btn variant="text" @click="openDownload" v-t="t('open-download')"></v-btn>
+        <v-btn variant="text" @click="openAppFolder" v-t="t('open-app-folder')"></v-btn>
+        <v-btn color="primary" class="hover-scale" variant="text" @click="ffmpegDialog = false"
+          v-t="t('confirm')"></v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <style scoped>
-
 .v-progress-linear,
 .v-progress-linear__determinate {
   transition: none;
@@ -561,7 +580,8 @@ function tryParseAspect(): number | undefined {
 .v-stepper {
   font-family: 'Inter var', system-ui, sans-serif;
   animation: fadeIn 0.5s cubic-bezier(0, 0, 0, 1) forwards;
-  opacity: 0; /* 初始状态透明 */
+  opacity: 0;
+  /* 初始状态透明 */
 }
 
 h2 {
@@ -592,9 +612,17 @@ h2 {
 }
 
 @keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 :deep(.v-slider__thumb) {
@@ -605,5 +633,4 @@ h2 {
 :deep(.v-slider__track-fill) {
   background: linear-gradient(90deg, #6366f1, #8b5cf6) !important;
 }
-
 </style>
